@@ -20,12 +20,12 @@ if ($mysqli->connect_error) {
 
 if ($couponCode != null) {
 
-    $checkCodeQuery = $mysqli->query("SELECT id, amount, status FROM coupons where code = $couponCode");
+    $checkCodeQuery = $mysqli->query("SELECT id, stock, amount, status FROM coupons where code = $couponCode");
     $checkCodeQueryResult = $checkCodeQuery->fetch_assoc();
 
     if ($checkCodeQueryResult != null) {
-        if ($checkCodeQueryResult['status'] == 'used') {
-            $message = 'این کد قبلا استفاده شده!';
+        if ($checkCodeQueryResult['stock'] == 0) {
+            $message = 'مهلت استفاده از این کد هدیه به اتمام رسیده است!';
         } else {
             $CodeId = $checkCodeQueryResult['id'];
 
@@ -33,18 +33,25 @@ if ($couponCode != null) {
             $userQueryResult = $userQuery->fetch_assoc();
             $userId = $userQueryResult['id'];
 
-            $checkBalanceQuery = $mysqli->query("SELECT id, balance FROM wallets WHERE user_id = $userId and status = 'active'");
-            $checkBalanceQueryResult = $checkBalanceQuery->fetch_assoc();
+            $transactionQuery = $mysqli->query("SELECT id FROM transactions where user_id = $userId and status = 'completed'");
+            $transactionQueryResult = $transactionQuery->fetch_assoc();
 
-            if ($checkBalanceQueryResult != null) {
-                $newBalance = $checkBalanceQueryResult['balance'] + $checkCodeQueryResult['amount'];
-                $walletId = $checkBalanceQueryResult['id'];
-                $mysqli->query("UPDATE wallets SET balance = $newBalance WHERE id = $walletId");
-                $mysqli->query("UPDATE coupons SET user_id = $userId WHERE id = $CodeId");
-                $mysqli->query("UPDATE coupons SET status = 'used' WHERE id = $CodeId");
-                $now = time();
-                $mysqli->query("INSERT INTO transactions (user_id, coupon_id, status, created_at) VALUES ($userId, $CodeId, 'completed', $now)");
-                $message = "اعتبار اضافه شد!";
+            if ($transactionQueryResult != null) {
+                $message = 'هر کاربر فقط یک‌بار می‌تواند از کد هدیه استفاده کند!';
+            } else {
+                $checkBalanceQuery = $mysqli->query("SELECT id, balance FROM wallets WHERE user_id = $userId and status = 'active'");
+                $checkBalanceQueryResult = $checkBalanceQuery->fetch_assoc();
+
+                if ($checkBalanceQueryResult != null) {
+                    $newBalance = $checkBalanceQueryResult['balance'] + $checkCodeQueryResult['amount'];
+                    $walletId = $checkBalanceQueryResult['id'];
+                    $newStock = $checkCodeQueryResult['stock'] - 1;
+                    $mysqli->query("UPDATE wallets SET balance = $newBalance WHERE id = $walletId");
+                    $mysqli->query("UPDATE coupons SET stock = $newStock WHERE id = $CodeId");
+                    $now = time();
+                    $mysqli->query("INSERT INTO transactions (user_id, coupon_id, status, created_at) VALUES ($userId, $CodeId, 'completed', $now)");
+                    $message = "اعتبار اضافه شد!";
+                }
             }
         }
     } else {
@@ -63,7 +70,7 @@ if ($username != null) {
 
         $walletQuery = $mysqli->query("SELECT balance FROM wallets where user_id = $userId and status = 'active'");
         $walletQueryResult = $walletQuery->fetch_assoc();
-        
+
         if ($walletQueryResult != null) {
             $userBalance = $walletQueryResult["balance"];
         }
@@ -80,7 +87,7 @@ if ($username != null) {
 
     echo '<form action="index.php" method="POST">';
     echo '<p>';
-    echo 'کد هدیه: <input type="number" min="0" name="coupon-code">';
+    echo 'کد هدیه: <input type="number" min="0" name="coupon-code" autofocus>';
     echo '<input type="submit" value="بررسی">';
     echo '<input type="hidden" name="phonenumber" value="' . $username . '">';
     echo '</p>';
