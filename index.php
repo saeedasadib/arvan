@@ -78,7 +78,7 @@ if ($username != null) {
 
     echo "<br><br><br>درصورتی که کد هدیه دارید آن را وارد نمایید!";
 
-    echo '<form action="wallet.php" method="POST">';
+    echo '<form action="index.php" method="POST">';
     echo '<p>';
     echo 'کد هدیه: <input type="number" min="0" name="coupon-code">';
     echo '<input type="submit" value="بررسی">';
